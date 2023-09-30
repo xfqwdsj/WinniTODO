@@ -6,63 +6,92 @@ import androidx.room.Entity
 import androidx.room.Insert
 import androidx.room.PrimaryKey
 import androidx.room.Query
+import androidx.room.Relation
+import androidx.room.Transaction
 import androidx.room.TypeConverter
 import androidx.room.TypeConverters
-import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.single
+import kotlinx.coroutines.flow.singleOrNull
 import java.time.Instant
 import java.time.OffsetDateTime
-import java.time.ZoneOffset
+import java.time.ZoneId
+import java.time.temporal.ChronoUnit
+import java.util.UUID
+
+data class Status(
+    val date: OffsetDateTime,
+    @Relation(
+        parentColumn = "date",
+        entityColumn = "date"
+    )
+    val doneTasks: List<DoneTask> = emptyList()
+)
 
 @Entity
 @TypeConverters(Converters::class)
-data class Status(
-    @PrimaryKey val date: OffsetDateTime,
-    val doneTasks: DoneTasks
+data class DoneTask(
+    @PrimaryKey val id: UUID = UUID.randomUUID(),
+    val date: OffsetDateTime = OffsetDateTime.now(),
+    val taskId: UUID
 )
-
-class DoneTasks(private val taskIds: List<Long>) : List<Long> by taskIds
 
 @Dao
 @TypeConverters(Converters::class)
 interface StatusDao {
-    @Query("SELECT * FROM status")
+    @Transaction
+    @Query("SELECT * FROM DoneTask")
     fun getAll(): Flow<List<Status>>
 
-    @Query("SELECT * FROM status WHERE date = :date")
-    fun getByDate(date: OffsetDateTime): Flow<Status>
+    @Transaction
+    @Query("SELECT * FROM DoneTask WHERE date = :dateTime")
+    fun getByDate(dateTime: OffsetDateTime): Flow<Status>
 
-    @Query("SELECT * FROM status WHERE :taskId IN (doneTasks)")
-    fun getByTask(taskId: Long): Flow<List<Status>>
+    @Query("SELECT * FROM DoneTask WHERE taskId = :taskId")
+    fun getByTask(taskId: UUID): Flow<List<DoneTask>>
+
+    @Query("SELECT * FROM DoneTask WHERE date = :dateTime AND taskId = :taskId LIMIT 1")
+    fun getByDateAndTask(
+        dateTime: OffsetDateTime = OffsetDateTime.now(),
+        taskId: UUID
+    ): Flow<DoneTask?>
 
     @Insert
-    fun insert(status: Status)
+    fun insert(task: DoneTask)
 
-    @Update
-    fun update(status: Status)
+    @Transaction
+    fun insert(dateTime: OffsetDateTime = OffsetDateTime.now(), taskId: UUID) {
+        insert(DoneTask(date = dateTime, taskId = taskId))
+    }
 
     @Delete
-    fun delete(status: Status)
+    fun delete(task: DoneTask)
+
+    @Transaction
+    suspend fun switchState(dateTime: OffsetDateTime = OffsetDateTime.now(), taskId: UUID) {
+        val status = getByDateAndTask(dateTime, taskId).firstOrNull()
+        if (status == null) {
+            insert(dateTime, taskId)
+        } else {
+            delete(status)
+        }
+    }
 }
 
 class Converters {
     @TypeConverter
     fun toOffsetDateTime(value: Long?): OffsetDateTime? {
-        return value?.let { OffsetDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneOffset.UTC) }
+        return value?.let {
+            OffsetDateTime.ofInstant(
+                Instant.ofEpochMilli(it),
+                ZoneId.systemDefault()
+            )
+        }
     }
 
     @TypeConverter
     fun fromOffsetDateTime(date: OffsetDateTime?): Long? {
-        return date?.toInstant()?.toEpochMilli()
-    }
-
-    @TypeConverter
-    fun toDoneTasks(value: String?): DoneTasks? {
-        return value?.let { v -> DoneTasks(v.split(',').map { it.toLong() }) }
-    }
-
-    @TypeConverter
-    fun fromDoneTasks(doneTasks: DoneTasks?): String? {
-        return doneTasks?.joinToString(",")
+        return date?.truncatedTo(ChronoUnit.DAYS)?.toInstant()?.toEpochMilli()
     }
 }

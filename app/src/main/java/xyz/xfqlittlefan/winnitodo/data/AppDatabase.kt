@@ -4,12 +4,17 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import xyz.xfqlittlefan.winnitodo.data.entities.Status
+import androidx.room.TypeConverter
+import androidx.room.TypeConverters
+import kotlinx.coroutines.flow.firstOrNull
+import xyz.xfqlittlefan.winnitodo.data.entities.DoneTask
 import xyz.xfqlittlefan.winnitodo.data.entities.StatusDao
 import xyz.xfqlittlefan.winnitodo.data.entities.Task
 import xyz.xfqlittlefan.winnitodo.data.entities.TaskDao
+import java.util.UUID
 
-@Database(entities = [Task::class, Status::class], version = 1, exportSchema = false)
+@Database(entities = [Task::class, DoneTask::class], version = 1, exportSchema = false)
+@TypeConverters(Converters::class)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun statusDao(): StatusDao
@@ -30,4 +35,22 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
     }
+
+    suspend fun deleteTask(task: Task) {
+        @Suppress("DEPRECATION")
+        taskDao().deleteDirectly(task)
+        statusDao().getByTask(taskId = task.id).firstOrNull()?.let { doneTasks ->
+            doneTasks.forEach { doneTask ->
+                statusDao().delete(doneTask)
+            }
+        }
+    }
+}
+
+class Converters {
+    @TypeConverter
+    fun fromUUID(uuid: UUID?): String? = uuid?.toString()
+
+    @TypeConverter
+    fun toUUID(uuid: String?): UUID? = uuid?.let { UUID.fromString(it) }
 }

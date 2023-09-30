@@ -8,10 +8,11 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Update
 import kotlinx.coroutines.flow.Flow
+import java.util.UUID
 
 @Entity
 data class Task(
-    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    @PrimaryKey val id: UUID = UUID.randomUUID(),
     val order: Int = 0,
     val title: String,
     val description: String,
@@ -22,8 +23,8 @@ interface TaskDao {
     @Query("SELECT * FROM task ORDER BY `order` ASC")
     fun getAll(): Flow<List<Task>>
 
-    @Query("SELECT * FROM task WHERE id = :id")
-    fun getById(id: Long): Flow<Task>
+    @Query("SELECT * FROM task WHERE id = :id LIMIT 1")
+    fun getById(id: UUID): Flow<Task>
 
     @Insert
     fun insert(task: Task)
@@ -32,5 +33,6 @@ interface TaskDao {
     fun update(task: Task)
 
     @Delete
-    fun delete(task: Task)
+    @Deprecated("Use `AppDatabase.deleteTask()` instead.")
+    fun deleteDirectly(task: Task)
 }

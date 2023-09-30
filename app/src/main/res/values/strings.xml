@@ -1,4 +1,12 @@
 <resources>
     <string name="app_name">Winni TODO</string>
-    <string name="add_task">Add Task</string>
+    <string name="action_task_add">添加任务</string>
+    <string name="action_task_details_cancel">取消</string>
+    <string name="action_task_details_done">完成</string>
+    <string name="action_task_details_view">详情</string>
+    <string name="action_task_delete">删除</string>
+    <string name="label_task_title">标题</string>
+    <string name="label_task_description">描述</string>
+    <string name="text_task_details_completed_times">共完成 %d 次</string>
+    <string name="title_task_details">任务详情</string>
 </resources>
