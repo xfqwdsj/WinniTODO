@@ -4,18 +4,12 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
-import androidx.room.TypeConverter
-import androidx.room.TypeConverters
 import xyz.xfqlittlefan.winnitodo.data.entities.Status
 import xyz.xfqlittlefan.winnitodo.data.entities.StatusDao
 import xyz.xfqlittlefan.winnitodo.data.entities.Task
 import xyz.xfqlittlefan.winnitodo.data.entities.TaskDao
-import java.time.Instant
-import java.time.OffsetDateTime
-import java.time.ZoneOffset
 
-@Database(entities = [Task::class, Status::class], version = 1)
-@TypeConverters(Converters::class)
+@Database(entities = [Task::class, Status::class], version = 1, exportSchema = false)
 abstract class AppDatabase : RoomDatabase() {
     abstract fun taskDao(): TaskDao
     abstract fun statusDao(): StatusDao
@@ -35,17 +29,5 @@ abstract class AppDatabase : RoomDatabase() {
                 instance
             }
         }
-    }
-}
-
-class Converters {
-    @TypeConverter
-    fun toOffsetDateTime(value: Long?): OffsetDateTime? {
-        return value?.let { OffsetDateTime.ofInstant(Instant.ofEpochMilli(it), ZoneOffset.UTC) }
-    }
-
-    @TypeConverter
-    fun fromOffsetDateTime(date: OffsetDateTime?): Long? {
-        return date?.toInstant()?.toEpochMilli()
     }
 }
