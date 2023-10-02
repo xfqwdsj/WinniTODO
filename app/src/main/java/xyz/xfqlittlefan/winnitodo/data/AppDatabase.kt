@@ -37,8 +37,7 @@ abstract class AppDatabase : RoomDatabase() {
     }
 
     suspend fun deleteTask(task: Task) {
-        @Suppress("DEPRECATION")
-        taskDao().deleteDirectly(task)
+        @Suppress("DEPRECATION") taskDao().deleteDirectly(task)
         statusDao().getByTask(taskId = task.id).firstOrNull()?.let { doneTasks ->
             doneTasks.forEach { doneTask ->
                 statusDao().delete(doneTask)

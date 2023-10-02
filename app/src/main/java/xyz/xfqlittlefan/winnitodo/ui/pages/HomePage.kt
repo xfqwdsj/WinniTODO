@@ -31,11 +31,9 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -44,23 +42,18 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavGraphBuilder
 import androidx.navigation.compose.composable
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.launch
 import xyz.xfqlittlefan.winnitodo.R
 import xyz.xfqlittlefan.winnitodo.data.entities.Task
 import xyz.xfqlittlefan.winnitodo.ui.AppRoutes
-import xyz.xfqlittlefan.winnitodo.ui.LocalAppDatabase
-import xyz.xfqlittlefan.winnitodo.ui.LocalNavController
+import xyz.xfqlittlefan.winnitodo.ui.LocalAppViewModel
 
+@Suppress("UnusedReceiverParameter")
 val AppRoutes.home get() = "home"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomePage() {
-    val scope = rememberCoroutineScope()
-    val navController = LocalNavController.current
-    val database = LocalAppDatabase.current
-    val tasks by database.taskDao().getAll().collectAsState(emptyList())
+    val viewModel = LocalAppViewModel.current
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
@@ -74,11 +67,7 @@ fun HomePage() {
             )
         },
         floatingActionButton = {
-            FloatingActionButton(
-                onClick = {
-                    navController.navigateToTaskDetails()
-                },
-            ) {
+            FloatingActionButton(onClick = viewModel::navigateToTaskDetails) {
                 Icon(
                     imageVector = Icons.Default.Add,
                     contentDescription = stringResource(R.string.action_task_add)
@@ -89,6 +78,7 @@ fun HomePage() {
         val layoutDirection = LocalLayoutDirection.current
         LazyVerticalStaggeredGrid(
             columns = StaggeredGridCells.Adaptive(180.dp),
+            modifier = Modifier.fillMaxSize(),
             contentPadding = PaddingValues(
                 start = contentPadding.calculateStartPadding(layoutDirection) + 16.dp,
                 top = contentPadding.calculateTopPadding() + 16.dp,
@@ -98,26 +88,15 @@ fun HomePage() {
             verticalItemSpacing = 16.dp,
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            items(tasks) { task ->
-                val doneTasks by database.statusDao().getByTask(taskId = task.id)
-                    .collectAsState(emptyList())
-                val doneTask by database.statusDao().getByDateAndTask(taskId = task.id)
-                    .collectAsState(null)
+            items(viewModel.tasks) { task ->
+                val doneTasks by viewModel.rememberDoneTasks(task)
 
                 TaskCard(
                     task = task,
-                    done = doneTask != null,
+                    done = viewModel.checkTask(doneTasks, task),
                     count = doneTasks.size,
-                    onSwitch = {
-                        scope.launch(Dispatchers.IO) {
-                            database.statusDao().switchState(taskId = task.id)
-                        }
-                    },
-                    onDelete = {
-                        scope.launch(Dispatchers.IO) {
-                            database.deleteTask(task)
-                        }
-                    },
+                    onSwitch = viewModel::switchTaskStatus,
+                    onDelete = viewModel::deleteTask,
                 )
             }
         }
@@ -126,10 +105,16 @@ fun HomePage() {
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun TaskCard(task: Task, done: Boolean, count: Int, onSwitch: () -> Unit, onDelete: () -> Unit) {
-    var showMenu by remember { mutableStateOf(false) }
+fun TaskCard(
+    task: Task,
+    done: Boolean,
+    count: Int,
+    onSwitch: (task: Task) -> Unit,
+    onDelete: (task: Task) -> Unit
+) {
+    val viewModel = LocalAppViewModel.current
 
-    val navController = LocalNavController.current
+    var showMenu by remember { mutableStateOf(false) }
 
     Card(
         shape = if (done) CardDefaults.shape else CardDefaults.outlinedShape,
@@ -142,7 +127,7 @@ fun TaskCard(task: Task, done: Boolean, count: Int, onSwitch: () -> Unit, onDele
                 .fillMaxSize()
                 .combinedClickable(
                     onLongClick = { showMenu = true },
-                    onClick = onSwitch,
+                    onClick = { onSwitch(task) },
                 )
                 .padding(16.dp),
         ) {
@@ -161,20 +146,20 @@ fun TaskCard(task: Task, done: Boolean, count: Int, onSwitch: () -> Unit, onDele
                 text = { Text(stringResource(R.string.action_task_details_view)) },
                 onClick = {
                     showMenu = false
-                    navController.navigateToTaskDetails(task.id)
+                    viewModel.navigateToTaskDetails(task.id)
                 },
                 leadingIcon = {
                     Icon(
                         imageVector = Icons.Default.Edit,
                         contentDescription = stringResource(R.string.action_task_details_view),
                     )
-                }
+                },
             )
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_task_delete)) },
                 onClick = {
                     showMenu = false
-                    onDelete()
+                    onDelete(task)
                 },
                 leadingIcon = {
                     Icon(
@@ -182,7 +167,7 @@ fun TaskCard(task: Task, done: Boolean, count: Int, onSwitch: () -> Unit, onDele
                         contentDescription = stringResource(R.string.action_task_delete),
                         tint = MaterialTheme.colorScheme.error,
                     )
-                }
+                },
             )
         }
     }

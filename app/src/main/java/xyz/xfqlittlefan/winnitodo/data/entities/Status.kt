@@ -12,8 +12,6 @@ import androidx.room.TypeConverter
 import androidx.room.TypeConverters
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.firstOrNull
-import kotlinx.coroutines.flow.single
-import kotlinx.coroutines.flow.singleOrNull
 import java.time.Instant
 import java.time.OffsetDateTime
 import java.time.ZoneId
@@ -69,7 +67,7 @@ interface StatusDao {
     fun delete(task: DoneTask)
 
     @Transaction
-    suspend fun switchState(dateTime: OffsetDateTime = OffsetDateTime.now(), taskId: UUID) {
+    suspend fun switchStatus(dateTime: OffsetDateTime = OffsetDateTime.now(), taskId: UUID) {
         val status = getByDateAndTask(dateTime, taskId).firstOrNull()
         if (status == null) {
             insert(dateTime, taskId)
