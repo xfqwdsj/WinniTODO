@@ -8,5 +8,7 @@
     <string name="label_task_title">标题</string>
     <string name="label_task_description">描述</string>
     <string name="text_task_details_completed_times">共完成 %d 次</string>
+    <string name="text_task_no_title">无标题</string>
+    <string name="text_task_no_description">无描述</string>
     <string name="title_task_details">任务详情</string>
 </resources>

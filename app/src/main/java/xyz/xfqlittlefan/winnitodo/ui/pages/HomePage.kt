@@ -131,9 +131,14 @@ fun TaskCard(
                 )
                 .padding(16.dp),
         ) {
-            Text(text = task.title, style = MaterialTheme.typography.titleLarge)
+            val noTitleText = stringResource(R.string.text_task_no_title)
+            val noDescriptionText = stringResource(R.string.text_task_no_description)
+            Text(
+                text = task.title.ifEmpty { noTitleText },
+                style = MaterialTheme.typography.titleLarge
+            )
             Spacer(Modifier.height(4.dp))
-            Text(task.description)
+            Text(task.description.ifEmpty { noDescriptionText })
             Spacer(Modifier.height(4.dp))
             Text(stringResource(R.string.text_task_details_completed_times, count))
         }
