@@ -22,7 +22,7 @@ class MainActivity : ComponentActivity() {
         val appDatabase = AppDatabase.getInstance(this)
         setContent {
             val navController = rememberNavController()
-            val viewModel: AppViewModel = viewModel(
+            val viewModel = viewModel<AppViewModel>(
                 factory = viewModelFactory {
                     addInitializer(AppViewModel::class) {
                         AppViewModel(appDatabase, navController)

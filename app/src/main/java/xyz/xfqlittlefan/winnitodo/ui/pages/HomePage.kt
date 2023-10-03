@@ -1,5 +1,6 @@
 package xyz.xfqlittlefan.winnitodo.ui.pages
 
+import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -37,6 +38,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -66,6 +68,9 @@ fun HomePage() {
                 scrollBehavior = scrollBehavior,
             )
         },
+        snackbarHost = {
+            viewModel.SnackbarHost()
+        },
         floatingActionButton = {
             FloatingActionButton(onClick = viewModel::navigateToTaskDetails) {
                 Icon(
@@ -89,7 +94,7 @@ fun HomePage() {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(viewModel.tasks) { task ->
-                val doneTasks by viewModel.rememberDoneTasks(task)
+                val doneTasks by viewModel.getDoneTasks(task)
 
                 TaskCard(
                     task = task,
@@ -110,7 +115,7 @@ fun TaskCard(
     done: Boolean,
     count: Int,
     onSwitch: (task: Task) -> Unit,
-    onDelete: (task: Task) -> Unit
+    onDelete: (context: Context, task: Task) -> Unit
 ) {
     val viewModel = LocalAppViewModel.current
 
@@ -147,6 +152,7 @@ fun TaskCard(
             expanded = showMenu,
             onDismissRequest = { showMenu = false },
         ) {
+            val context = LocalContext.current
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_task_details_view)) },
                 onClick = {
@@ -164,7 +170,7 @@ fun TaskCard(
                 text = { Text(stringResource(R.string.action_task_delete)) },
                 onClick = {
                     showMenu = false
-                    onDelete(task)
+                    onDelete(context, task)
                 },
                 leadingIcon = {
                     Icon(
