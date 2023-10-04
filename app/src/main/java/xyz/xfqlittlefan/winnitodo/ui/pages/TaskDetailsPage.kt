@@ -1,6 +1,9 @@
 package xyz.xfqlittlefan.winnitodo.ui.pages
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -13,6 +16,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Done
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -33,11 +37,13 @@ import androidx.navigation.compose.composable
 import xyz.xfqlittlefan.winnitodo.R
 import xyz.xfqlittlefan.winnitodo.ui.AppRoutes
 import xyz.xfqlittlefan.winnitodo.ui.LocalAppViewModel
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
 
 @Suppress("UnusedReceiverParameter")
 val AppRoutes.taskDetails get() = "taskDetails"
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun TaskDetailsPage() {
     val viewModel = LocalAppViewModel.current
@@ -101,6 +107,26 @@ fun TaskDetailsPage() {
                     onDone = { pageViewModel.updateTask() },
                 ),
             )
+            Spacer(Modifier.height(16.dp))
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                pageViewModel.doneTasks.forEach { doneTask ->
+                    AssistChip(
+                        onClick = { pageViewModel.navigateToDate(doneTask.date) },
+                        label = {
+                            Text(
+                                doneTask.date.format(
+                                    DateTimeFormatter.ofLocalizedDate(
+                                        FormatStyle.LONG
+                                    )
+                                )
+                            )
+                        },
+                    )
+                }
+            }
         }
     }
 }

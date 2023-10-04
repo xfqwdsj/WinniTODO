@@ -1,6 +1,5 @@
 package xyz.xfqlittlefan.winnitodo.ui.pages
 
-import android.content.Context
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,20 +16,31 @@ import androidx.compose.foundation.lazy.staggeredgrid.StaggeredGridCells
 import androidx.compose.foundation.lazy.staggeredgrid.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.Analytics
+import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.NavigateBefore
+import androidx.compose.material.icons.filled.NavigateNext
+import androidx.compose.material.icons.filled.Today
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.DatePicker
+import androidx.compose.material3.DatePickerDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.rememberDatePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -48,6 +58,10 @@ import xyz.xfqlittlefan.winnitodo.R
 import xyz.xfqlittlefan.winnitodo.data.entities.Task
 import xyz.xfqlittlefan.winnitodo.ui.AppRoutes
 import xyz.xfqlittlefan.winnitodo.ui.LocalAppViewModel
+import java.time.format.DateTimeFormatter
+import java.time.format.FormatStyle
+import java.time.format.TextStyle
+import java.util.Locale
 
 @Suppress("UnusedReceiverParameter")
 val AppRoutes.home get() = "home"
@@ -64,8 +78,37 @@ fun HomePage() {
         ),
         topBar = {
             LargeTopAppBar(
-                title = { Text(stringResource(R.string.app_name)) },
+                title = { Text(viewModel.date.format(DateTimeFormatter.ofLocalizedDate(FormatStyle.LONG))) },
                 scrollBehavior = scrollBehavior,
+                actions = {
+                    IconButton(onClick = viewModel::navigateToPreviousDay) {
+                        Icon(
+                            imageVector = Icons.Default.NavigateBefore,
+                            contentDescription = stringResource(R.string.action_date_previous_navigate),
+                        )
+                    }
+                    IconButton(
+                        onClick = viewModel::navigateToNextDay,
+                        enabled = viewModel.canNavigateToNextDay,
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.NavigateNext,
+                            contentDescription = stringResource(R.string.action_date_next_navigate),
+                        )
+                    }
+                    IconButton(onClick = viewModel::navigateToToday) {
+                        Icon(
+                            imageVector = Icons.Default.Today,
+                            contentDescription = stringResource(R.string.action_date_today_navigate),
+                        )
+                    }
+                    IconButton(onClick = viewModel::showDatePicker) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarMonth,
+                            contentDescription = stringResource(R.string.action_date_picker_show),
+                        )
+                    }
+                },
             )
         },
         snackbarHost = {
@@ -94,16 +137,84 @@ fun HomePage() {
             horizontalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             items(viewModel.tasks) { task ->
-                val doneTasks by viewModel.getDoneTasks(task)
+                val context = LocalContext.current
+                val doneTasks by viewModel.getDoneTasks(task.id)
 
                 TaskCard(
                     task = task,
-                    done = viewModel.checkTask(doneTasks, task),
+                    done = viewModel.checkTask(doneTasks, task.id),
                     count = doneTasks.size,
-                    onSwitch = viewModel::switchTaskStatus,
-                    onDelete = viewModel::deleteTask,
+                    onSwitch = { viewModel.switchTaskStatus(task.id) },
+                    onDelete = { viewModel.deleteTask(context, task) },
                 )
             }
+        }
+    }
+
+    viewModel.currentlyShowingStatisticsTaskId?.let { id ->
+        val doneTasks by viewModel.getDoneTasks(id)
+
+        AlertDialog(
+            onDismissRequest = viewModel::hideStatistics,
+            confirmButton = {
+                TextButton(onClick = viewModel::hideStatistics) {
+                    Text(stringResource(R.string.action_task_statistics_close))
+                }
+            },
+            title = {
+                Text(stringResource(R.string.label_statistics_title))
+            },
+            text = {
+                Text(
+                    "${
+                        stringResource(
+                            R.string.text_task_details_completed_times,
+                            stringResource(R.string.text_task_details_completed_times_placeholder_total),
+                            doneTasks.size,
+                        )
+                    }\n${
+                        stringResource(
+                            R.string.text_task_details_completed_times,
+                            viewModel.date.month.getDisplayName(
+                                TextStyle.FULL, Locale.getDefault()
+                            ),
+                            doneTasks.count { it.date.month == viewModel.date.month },
+                        )
+                    }\n${
+                        stringResource(
+                            R.string.text_task_details_completed_times,
+                            viewModel.date.year,
+                            doneTasks.count { it.date.year == viewModel.date.year },
+                        )
+                    }"
+                )
+            },
+        )
+    }
+
+    if (viewModel.showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+
+        DatePickerDialog(
+            onDismissRequest = viewModel::hideDatePicker,
+            confirmButton = {
+                TextButton(
+                    onClick = { datePickerState.selectedDateMillis?.let { viewModel.selectDate(it) } },
+                    enabled = datePickerState.selectedDateMillis != null
+                ) {
+                    Text(stringResource(R.string.action_date_picker_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = viewModel::hideDatePicker) {
+                    Text(stringResource(R.string.action_date_picker_cancel))
+                }
+            },
+        ) {
+            DatePicker(
+                state = datePickerState,
+                dateValidator = { viewModel.canNavigateToDate(viewModel.transformUTCDate(it)) },
+            )
         }
     }
 }
@@ -111,11 +222,7 @@ fun HomePage() {
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun TaskCard(
-    task: Task,
-    done: Boolean,
-    count: Int,
-    onSwitch: (task: Task) -> Unit,
-    onDelete: (context: Context, task: Task) -> Unit
+    task: Task, done: Boolean, count: Int, onSwitch: () -> Unit, onDelete: () -> Unit
 ) {
     val viewModel = LocalAppViewModel.current
 
@@ -132,7 +239,7 @@ fun TaskCard(
                 .fillMaxSize()
                 .combinedClickable(
                     onLongClick = { showMenu = true },
-                    onClick = { onSwitch(task) },
+                    onClick = onSwitch,
                 )
                 .padding(16.dp),
         ) {
@@ -145,14 +252,19 @@ fun TaskCard(
             Spacer(Modifier.height(4.dp))
             Text(task.description.ifEmpty { noDescriptionText })
             Spacer(Modifier.height(4.dp))
-            Text(stringResource(R.string.text_task_details_completed_times, count))
+            Text(
+                stringResource(
+                    R.string.text_task_details_completed_times,
+                    stringResource(R.string.text_task_details_completed_times_placeholder_total),
+                    count
+                )
+            )
         }
 
         DropdownMenu(
             expanded = showMenu,
             onDismissRequest = { showMenu = false },
         ) {
-            val context = LocalContext.current
             DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_task_details_view)) },
                 onClick = {
@@ -167,10 +279,23 @@ fun TaskCard(
                 },
             )
             DropdownMenuItem(
+                text = { Text(stringResource(R.string.action_task_statistics_show)) },
+                onClick = {
+                    showMenu = false
+                    viewModel.showStatistics(task.id)
+                },
+                leadingIcon = {
+                    Icon(
+                        imageVector = Icons.Default.Analytics,
+                        contentDescription = stringResource(R.string.action_task_statistics_show),
+                    )
+                },
+            )
+            DropdownMenuItem(
                 text = { Text(stringResource(R.string.action_task_delete)) },
                 onClick = {
                     showMenu = false
-                    onDelete(context, task)
+                    onDelete()
                 },
                 leadingIcon = {
                     Icon(

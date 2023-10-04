@@ -46,7 +46,7 @@ interface StatusDao {
     @Query("SELECT * FROM DoneTask WHERE date = :dateTime")
     fun getByDate(dateTime: OffsetDateTime): Flow<Status>
 
-    @Query("SELECT * FROM DoneTask WHERE taskId = :taskId")
+    @Query("SELECT * FROM DoneTask WHERE taskId = :taskId ORDER BY date")
     fun getByTask(taskId: UUID): Flow<List<DoneTask>>
 
     @Query("SELECT * FROM DoneTask WHERE date = :dateTime AND taskId = :taskId LIMIT 1")

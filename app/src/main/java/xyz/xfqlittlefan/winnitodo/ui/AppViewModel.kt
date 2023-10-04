@@ -34,7 +34,9 @@ import xyz.xfqlittlefan.winnitodo.data.entities.DoneTask
 import xyz.xfqlittlefan.winnitodo.data.entities.Task
 import xyz.xfqlittlefan.winnitodo.ui.pages.taskDetails
 import xyz.xfqlittlefan.winnitodo.ui.viewModels.TaskDetailsPageViewModel
+import java.time.Instant
 import java.time.OffsetDateTime
+import java.time.ZoneId
 import java.time.temporal.ChronoUnit
 import java.util.UUID
 
@@ -44,14 +46,76 @@ class AppViewModel(
 ) : ViewModel() {
     private val databaseScope = CoroutineScope(Job())
 
-    private val _date = MutableStateFlow(OffsetDateTime.now().truncatedTo(ChronoUnit.DAYS))
-
+    private val _date = mutableStateOf(OffsetDateTime.now().truncatedTo(ChronoUnit.DAYS))
 
     /**
      * 当前正在查看的日期。
      */
-    var date by _date.asMutableState(OffsetDateTime.now().truncatedTo(ChronoUnit.DAYS)) {
-        it.truncatedTo(ChronoUnit.DAYS)
+    var date by object : MutableState<OffsetDateTime> by _date {
+        override var value: OffsetDateTime
+            get() = _date.value
+            set(value) {
+                _date.value = value.truncatedTo(ChronoUnit.DAYS)
+            }
+    }
+        private set
+
+    var showDatePicker by mutableStateOf(false)
+        private set
+
+    private fun transformDate(localMillis: Long): OffsetDateTime = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(localMillis),
+        ZoneId.systemDefault(),
+    )
+
+    fun transformUTCDate(utcMillis: Long): OffsetDateTime = OffsetDateTime.ofInstant(
+        Instant.ofEpochMilli(utcMillis),
+        ZoneId.systemDefault(),
+    ).minusSeconds(ZoneId.systemDefault().rules.getOffset(Instant.now()).totalSeconds.toLong())
+
+    fun canNavigateToDate(day: OffsetDateTime) =
+        day <= OffsetDateTime.now().truncatedTo(ChronoUnit.DAYS)
+
+    fun navigateToPreviousDay() {
+        date = date.minusDays(1)
+    }
+
+    val canNavigateToNextDay get() = canNavigateToDate(date.plusDays(1))
+
+    fun navigateToNextDay() {
+        date = date.plusDays(1)
+    }
+
+    fun navigateToToday() {
+        date = OffsetDateTime.now()
+    }
+
+    fun navigateToDate(dateTime: OffsetDateTime) {
+        date = dateTime
+    }
+
+    fun showDatePicker() {
+        showDatePicker = true
+    }
+
+    fun selectDate(selectedMillis: Long) {
+        date = transformDate(selectedMillis)
+        hideDatePicker()
+    }
+
+    fun hideDatePicker() {
+        showDatePicker = false
+    }
+
+    var currentlyShowingStatisticsTaskId by mutableStateOf<UUID?>(null)
+        private set
+
+    fun showStatistics(taskId: UUID) {
+        currentlyShowingStatisticsTaskId = taskId
+    }
+
+    fun hideStatistics() {
+        currentlyShowingStatisticsTaskId = null
     }
 
     private val snackbarHostState = SnackbarHostState()
@@ -63,9 +127,9 @@ class AppViewModel(
     fun SnackbarHost() = SnackbarHost(hostState = snackbarHostState)
 
     /**
-     * 当前正在查看的 [Task] 的 ID。
+     * 当前正在查看详情的 [Task] 的 ID。
      */
-    var currentlyViewingTaskId by mutableStateOf<UUID?>(null)
+    var currentlyViewingDetailsTaskId by mutableStateOf<UUID?>(null)
         private set
 
     private val taskDao = database.taskDao()
@@ -80,49 +144,39 @@ class AppViewModel(
         tasks.filterNot { deletingTasks.contains(it) }
     }.asState(emptyList())
 
-//    inline fun getDoneTasks(task: Task) = tasks.first { it.id == task.id }.
-
-//    private fun getDoneTasksFlow(task: Task): Flow<List<DoneTask>> {
-//        return statusDao.getByTask(task.id)
-//    }
-//
-//    private fun getDoneTasks(task: Task): State<List<DoneTask>> {
-//        return statusDao.getByTask(task.id).asState(emptyList())
-//    }
-
     /**
-     * 获取 [task] 的已完成列表。
+     * 获取 [taskId] 对应的 [Task] 的 [DoneTask] 列表。
      *
-     * @param task 要获取已完成列表的 [Task]。
+     * @param taskId 要获取已完成列表的 [Task] 的 [UUID]。
      *
-     * @return 已使用 [remember] 记住的 [task] 的已完成列表。
+     * @return 已使用 [remember] 记住的 [Task] 的 [DoneTask] 列表。
      */
     @Composable
-    fun getDoneTasks(task: Task) = statusDao.getByTask(task.id).collectAsState(emptyList())
+    fun getDoneTasks(taskId: UUID) = statusDao.getByTask(taskId).collectAsState(emptyList())
 
     /**
-     * 检查 [task] 是否已完成。
+     * 检查 [taskId] 对应的 [Task] 是否已完成。
      *
      * @param doneTasks [DoneTask] 列表。
-     * @param task 要检查的 [Task]。
-     * @return 如果 [task] 已完成则返回 `true`，否则返回 `false`。
+     * @param taskId 要检查的 [Task] 的 [UUID]。
+     * @return 如果 [Task] 已完成则返回 `true`，否则返回 `false`。
      */
-    fun checkTask(doneTasks: List<DoneTask>, task: Task): Boolean {
+    fun checkTask(doneTasks: List<DoneTask>, taskId: UUID): Boolean {
         return doneTasks.any {
-            it.date == date && it.taskId == task.id
+            it.date == date && it.taskId == taskId
         }
     }
 
     /**
-     * 更新 [currentlyViewingTaskId] 对应的 [Task]。
+     * 更新 [currentlyViewingDetailsTaskId] 对应的 [Task]。
      *
-     * 如果 [currentlyViewingTaskId] 为 `null`，则插入一个新的 [Task]。
+     * 如果 [currentlyViewingDetailsTaskId] 为 `null`，则插入一个新的 [Task]。
      *
      * @param title [Task] 的标题。
      * @param description [Task] 的描述。
      */
     fun updateTask(title: String, description: String) {
-        val id = currentlyViewingTaskId
+        val id = currentlyViewingDetailsTaskId
         databaseScope.launch(Dispatchers.IO) {
             if (id == null) {
                 taskDao.insert(
@@ -144,13 +198,13 @@ class AppViewModel(
     }
 
     /**
-     * 切换 [task] 的状态。
+     * 切换 [taskId] 对应的 [Task] 的状态。
      *
-     * @param task 要切换状态的 [Task]。
+     * @param taskId 要切换状态的 [Task] 的 [UUID]。
      */
-    fun switchTaskStatus(task: Task) {
+    fun switchTaskStatus(taskId: UUID) {
         databaseScope.launch(Dispatchers.IO) {
-            statusDao.switchStatus(dateTime = date, taskId = task.id)
+            statusDao.switchStatus(dateTime = date, taskId = taskId)
         }
     }
 
@@ -170,7 +224,7 @@ class AppViewModel(
             deletingTasks.emit(deletingTasks.value + task)
             val result = snackbarHostState.showSnackbar(
                 message = context.getString(R.string.text_task_deleted),
-                actionLabel = context.getString(R.string.action_task_delection_undo),
+                actionLabel = context.getString(R.string.action_task_deletion_undo),
                 withDismissAction = true,
                 duration = SnackbarDuration.Long,
             )
@@ -203,10 +257,10 @@ class AppViewModel(
      *
      * @return 如果可以返回上一个页面则返回 `true`，否则返回 `false`。
      */
-    private fun checkAndPop() = if (canPop) pop() else false
+    fun checkAndPop() = if (canPop) pop() else false
 
     fun navigateToTaskDetails(taskId: UUID? = null) {
-        currentlyViewingTaskId = taskId
+        currentlyViewingDetailsTaskId = taskId
         navController.navigate(AppRoutes.taskDetails)
     }
 
@@ -241,29 +295,6 @@ class AppViewModel(
             }
         }
         return state
-    }
-
-    private fun <T> MutableStateFlow<T>.asMutableState(
-        initialValue: T,
-        setValue: (value: T) -> T
-    ): MutableState<T> {
-        val state = mutableStateOf(initialValue)
-        viewModelScope.launch(Dispatchers.IO) {
-            collect {
-                withContext(Dispatchers.Main) {
-                    state.value = it
-                }
-            }
-        }
-        return object : MutableState<T> by state {
-            override var value: T
-                get() = state.value
-                set(value) {
-                    viewModelScope.launch {
-                        emit(setValue(value))
-                    }
-                }
-        }
     }
 
     init {
