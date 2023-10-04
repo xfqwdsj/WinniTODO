@@ -17,7 +17,18 @@ class TaskDetailsPageViewModel(private val appViewModel: AppViewModel) : ViewMod
         private set
 
     var title by mutableStateOf("")
+        private set
+
+    fun updateTitle(title: String) {
+        this.title = title
+    }
+
     var description by mutableStateOf("")
+        private set
+
+    fun updateDescription(description: String) {
+        this.description = description
+    }
 
     fun updateTask() = appViewModel.updateTask(title, description)
 

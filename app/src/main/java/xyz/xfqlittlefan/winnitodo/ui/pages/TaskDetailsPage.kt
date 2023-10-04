@@ -88,7 +88,7 @@ fun TaskDetailsPage() {
         ) {
             TextField(
                 value = pageViewModel.title,
-                onValueChange = pageViewModel::title.setter,
+                onValueChange = pageViewModel::updateTitle,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = pageViewModel.isReady,
                 label = { Text(stringResource(R.string.label_task_title)) },
@@ -98,7 +98,7 @@ fun TaskDetailsPage() {
             Spacer(Modifier.height(16.dp))
             TextField(
                 value = pageViewModel.description,
-                onValueChange = pageViewModel::description.setter,
+                onValueChange = pageViewModel::updateDescription,
                 modifier = Modifier.fillMaxWidth(),
                 enabled = pageViewModel.isReady,
                 label = { Text(stringResource(R.string.label_task_description)) },
