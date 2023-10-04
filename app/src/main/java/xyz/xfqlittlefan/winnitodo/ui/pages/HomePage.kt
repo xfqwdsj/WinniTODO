@@ -178,7 +178,7 @@ fun HomePage() {
                             viewModel.date.month.getDisplayName(
                                 TextStyle.FULL, Locale.getDefault()
                             ),
-                            doneTasks.count { it.date.month == viewModel.date.month },
+                            doneTasks.count { it.date.year == viewModel.date.year && it.date.month == viewModel.date.month },
                         )
                     }\n${
                         stringResource(
