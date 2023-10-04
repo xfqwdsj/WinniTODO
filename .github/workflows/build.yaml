@@ -16,7 +16,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v3
 
-      - name: Setup Android cache
+      - name: Setting up Android cache
         uses: actions/cache@v3
         with:
           path: |
@@ -36,7 +36,7 @@ jobs:
 
       - name: Configure signing
         run: |
-          if [ "${{ secrets.KEY }}" != "" ]; then
+          if [ "${{ secrets.PROPERTIES }}" != "" ] && [ "${{ secrets.KEY }}" != "" ]; then
             cd app
             echo ${{ secrets.PROPERTIES }} | base64 --decode > key.properties
             echo ${{ secrets.KEY }} | base64 --decode > key.jks
@@ -52,4 +52,4 @@ jobs:
         uses: actions/upload-artifact@v3
         with:
           name: WinniTODO-${{ github.sha }}
-          path: app/build/outputs/apk/release/app-release.apk
+          path: app/build/outputs/apk/release/*
