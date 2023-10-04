@@ -1,0 +1,55 @@
+name: Build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    name: Building app
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      - name: Setup Android cache
+        uses: actions/cache@v3
+        with:
+          path: |
+            ~/.gradle/caches
+            ~/.gradle/wrapper
+            ~/.android/build-cache
+          key: ${{ hashFiles('**/*.gradle*') }}
+
+      - name: Setting up JDK
+        uses: actions/setup-java@v3
+        with:
+          distribution: temurin
+          java-version: '19'
+
+      - name: Setting up Android SDK
+        uses: android-actions/setup-android@v2
+
+      - name: Configure signing
+        run: |
+          if [ "${{ secrets.KEY }}" != "" ]; then
+            cd app
+            echo ${{ secrets.PROPERTIES }} | base64 --decode > key.properties
+            echo ${{ secrets.KEY }} | base64 --decode > key.jks
+          fi
+
+      - name: Build
+        run: |
+          echo "-github-actions-${{ github.sha }}" > app/extra_version.txt
+          chmod +x ./gradlew
+          ./gradlew assembleRelease
+
+      - name: Archive ${{ matrix.platform }} app
+        uses: actions/upload-artifact@v3
+        with:
+          name: WinniTODO-${{ github.sha }}
+          path: app/build/outputs/apk/release/app-release.apk

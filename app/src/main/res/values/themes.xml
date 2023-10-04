@@ -1,13 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
 
-    <style name="DayNightBase" parent="android:Theme.Light.NoTitleBar" />
+    <style name="DayNightBase" parent="android:Theme.Material.Light.NoActionBar" />
     <style name="BaseTheme" parent="DayNightBase">
         <item name="android:windowLayoutInDisplayCutoutMode">shortEdges</item>
-        <item name="android:statusBarColor">@android:color/transparent</item>
-        <item name="android:navigationBarColor">@android:color/transparent</item>
-        <item name="android:windowTranslucentStatus">true</item>
-        <item name="android:windowTranslucentNavigation">true</item>
     </style>
 
     <style name="Theme.WinniTODO" parent="BaseTheme" />

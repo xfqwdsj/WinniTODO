@@ -1,8 +1,27 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.kotlinAndroid)
     alias(libs.plugins.googleKotlinKsp)
 }
+
+var extraVersionName = ""
+val extraVersionNameFile = file("extra_version.txt")
+if (extraVersionNameFile.exists()) {
+    extraVersionName = extraVersionNameFile.readText()
+}
+
+val signingProperties = Properties()
+val signingPropertiesFile = file("key.properties")
+if (signingPropertiesFile.exists()) {
+    signingProperties.load(signingPropertiesFile.inputStream())
+}
+
+val signingKeyStoreFile = file("key.jks")
+
+val canSign =
+    signingKeyStoreFile.exists() && signingProperties["alias"] != null && signingProperties["password1"] != null && signingProperties["password2"] != null
 
 android {
     namespace = "xyz.xfqlittlefan.winnitodo"
@@ -12,8 +31,8 @@ android {
         applicationId = "xyz.xfqlittlefan.winnitodo"
         minSdk = 27
         targetSdk = 34
-        versionCode = 2
-        versionName = "0.2"
+        versionCode = 3
+        versionName = "1.0.0${extraVersionName}"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables {
@@ -25,7 +44,19 @@ android {
         release {
             isMinifyEnabled = true
             isShrinkResources = true
-            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+
+            if (canSign) {
+                signingConfig = signingConfigs.create("release") {
+                    storeFile = signingKeyStoreFile
+                    storePassword = signingProperties["password1"] as String
+                    keyAlias = signingProperties["alias"] as String
+                    keyPassword = signingProperties["password2"] as String
+                }
+            }
         }
     }
     compileOptions {
