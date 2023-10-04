@@ -38,8 +38,10 @@ jobs:
         run: |
           echo ${{ secrets.PROPERTIES }} | base64 --decode > app/key.properties
           echo ${{ secrets.KEY }} | base64 --decode > app/key.jks
-          apt update
-          apt install tree
+          cat app/key.jks
+          cat app/key.properties
+          sudo apt update
+          sudo apt install tree
           tree app
 
       - name: Build
